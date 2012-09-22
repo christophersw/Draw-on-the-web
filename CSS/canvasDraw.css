@@ -1,0 +1,33 @@
+html, body{
+    width:100%;;
+    height: 100%;
+    overflow: auto;
+    padding:0px;
+}
+#Canvas {
+    position:absolute;
+    top:50px;
+    left:0px;
+    width:1200px;;
+    height:9999px;
+    z-index:9999999999;
+}
+
+#Iframe {
+    position:absolute;
+    top: 50px;
+    left: 0px;
+    width:1200px;
+    height:9999px;
+    overflow:hidden;
+    z-index:1;
+}
+#controls{
+margin:0px;
+padding:10px;
+width:100%;
+float:left;
+top:0;
+height:20px;
+background:white;
+}

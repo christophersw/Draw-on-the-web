@@ -1,0 +1,14 @@
+body{
+    color:white;
+    height:100%;
+}
+h1{
+    color:white;    
+}
+
+#container{
+    position:relative;
+    top:30%;
+    margin:10px;
+    text-align:center;
+}
