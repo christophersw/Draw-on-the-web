@@ -49,7 +49,7 @@ function draw(response, request, savedIndex) {
     var body = "";
     
     if(savedIndex !== undefined){
-       // body += '<span id="saved" style="display:none" data-savedDate=' +JSON.stringify(storedObj) + '></span>';
+        body += '<span id="saved" style="display:none" data-savedDate=' +JSON.stringify(storedObj) + '></span>';
     }
      body += '<div id="controls">' +
                     '<button type="submit" value="submit" onclick="sendData()">Save</button>'+

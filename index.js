@@ -17,7 +17,7 @@ handle["/scripts/randomBackground.js"] = function(response){requestHandlers.stat
 
 handle["/styles/canvasDraw.css"] = function(response){requestHandlers.staticFile("./CSS/canvasDraw.css","text/css",response);};
 handle["/styles/MainPage.css"] = function(response){requestHandlers.staticFile("./CSS/MainPage.css","text/css",response);};
-
+handle["/saved/styles/canvasDraw.css"] = function(response){requestHandlers.staticFile("./CSS/canvasDraw.css","text/css",response);};
 server.start(router.route, handle);
 
 function addToHandle(key, funcRoute)

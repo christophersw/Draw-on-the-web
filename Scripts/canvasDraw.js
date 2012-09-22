@@ -37,7 +37,7 @@ window.onload = (function() {
 
     $('#' + canvasId).mousemove(function(e) {
         if (paint) {
-            addClick(e.pageX - this.offsetLeft, e.pageY - this.offsetTop, true);
+            addClick(e.pageX - this.offsetLeft , e.pageY - this.offsetTop, true);
             redraw();
         }
     });
@@ -74,13 +74,14 @@ window.onload = (function() {
     }
 
     (function getSaved() {
-        var savedObj = $("#saved");
+        var savedObj = document.getElementById("saved");
 
         if (savedObj) {
-            var storedData = JSON.parse(savedObj.attr("data-savedDate"));
+            var storedData = JSON.parse(savedObj.getAttribute("data-savedDate"));
             context.strokeStyle = storedData.strokeStyle;
             context.lineJoin = storedData.lineJoin;
             context.lineWidth = storedData.lineWidth;
+            clickDrag = storedData.clickDrag;
             clickX = storedData.clickX;
             clickY = storedData.clickY;
             redraw();
@@ -94,10 +95,11 @@ function sendData()
  data.strokeStyle = context.strokeStyle;
  data.lineJoin = context.lineJoin;
  data.lineWidth = context.lineWidth;
+ data.clickDrag = clickDrag;
  data.clickX = clickX;
  data.clickY = clickY;
  data.url = $('#Iframe').attr("src");
- put("save", data);
+ put("/save", data);
 }
 
 function put(id, data) {

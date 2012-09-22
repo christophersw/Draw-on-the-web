@@ -23,11 +23,19 @@ html, body{
     z-index:1;
 }
 #controls{
+color:white;
 margin:0px;
 padding:10px;
 width:100%;
 float:left;
 top:0;
 height:20px;
-background:white;
+}
+
+#controls a:link{
+    color:white;
+}
+
+#controls a:visited{
+    color:white;
 }
