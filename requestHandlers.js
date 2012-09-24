@@ -45,23 +45,25 @@ function draw(response, request, savedIndex) {
 
     meta.jscripts = ['http://ajax.aspnetcdn.com/ajax/jQuery/jquery-1.8.0.js', //jquery
     '/scripts/canvasDraw.js'];
-
-    var body = "";
     
-    if(savedIndex !== undefined){
-        body += '<span id="saved" style="display:none" data-savedDate=' +JSON.stringify(storedObj) + '></span>';
-    }
-     body += '<div id="controls">' +
-                    '<button type="submit" value="submit" onclick="sendData()">Save</button>'+
-                    '<span id="link"></span>' +
-                '</div>' +
-                '<canvas id="Canvas" width="1200px" height="9999px">No Canvas</canvas>' + 
-                '<iframe id="Iframe" sandbox="allow-forms allow-scripts" src="' + urlToGet + '"></iframe>';
-    
-    
-
-    wrappers.standard(meta, body, response);
-
+    fs.readFile("./Pages/CanvasDraw.html", function(err, content){
+        if(err){
+            common.util.log(err);
+            throw err;    
+        }
+        else{
+            var body = content;
+            
+            //dynamic content to add to the end of the static content...
+            body += '<iframe id="Iframe" sandbox="allow-forms allow-scripts" src="' + urlToGet + '"></iframe>';
+            
+            if(savedIndex !== undefined)
+            {
+                body += '<span id="saved" style="display:none" data-savedDate=' + JSON.stringify(storedObj) + '></span>';
+            }
+            wrappers.standard(meta, body, response);
+        }
+    });
 }
 
 function staticFile(path,contentType, response)
@@ -83,7 +85,8 @@ function save(response, request){
     
     if ( request.method === 'POST' ) {
         // the body of the POST is JSON payload.
-        var data = '';
+        var data = '';    
+        
         request.addListener('data', function(chunk) { data += chunk; });
         request.addListener('end', function() {
             store.push(JSON.parse(data));
