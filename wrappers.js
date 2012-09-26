@@ -1,5 +1,6 @@
-var async = require("./Async/lib/async");
-var common = require("./Common");
+var async = require("./Async/lib/async"),
+    common = require("./Common"),
+    util = require("util");
 
 function standard(meta, body, response) {
     var headerTagged = '<head>' + '<meta charset=\"utf-8\"/>' + '<title>' + meta.title + '</title>';
@@ -21,33 +22,7 @@ function standard(meta, body, response) {
     response.writeHead(200);
     response.write('<!DOCTYPE html>' + '<html>' + headerTagged + bodyTagged + '</html>');
     response.end();
-}
-
-function asyncDemo(meta, body, response) {
-    var title = meta.title;
-
-    var headerTagged = '<head>' + '<meta charset=\"utf-8\"/>' + '<title>' + title + '</title>' + '</head>';
-
-    //whilst(test, fn, callback)
-    var count = 0;
-    async.whilst(
-
-    function() {
-        return count < 10;
-    },
-
-    function(callback) {
-        count++;
-        common.util.log(count);
-        setTimeout(callback, 1000);
-    },
-
-    function(err) {
-        //complete the call...
-        var bodyTagged = '<body id="body">' + body + '</body>';
-        response.write('<!DOCTYPE html>' + '<html>' + headerTagged + bodyTagged + '</html>');
-        response.end();
-    });
+    util.log("served page" + meta.title );
 }
 
 exports.standard = standard;

@@ -1,9 +1,34 @@
+"use strict";
+
 var wrappers = require('./wrappers'),
     common = require("./Common"),
     index = require("./index"),
     fs = require('fs'),
-    url = require('url');
+    url = require('url'),
+    util = require('util');
     var store = [];
+  
+(function getData(){
+    fs.readFile("./Data/store.txt", function(err, content){
+        if(err) throw err;
+            try{
+                store = JSON.parse(content);
+                for(var s = 0; s < store.length; s++)
+                {  
+                    //a closure must be used here b/c we cannot reference ever-changing s...
+                    (function(s){
+                        index.addToHandle('/saved/' + s, function(response, request){draw(response, request, s) ;});
+                        })(s);                    
+                }
+                util.log("read Store file");
+            }
+            catch(err)
+            {
+                store = [];
+                util.log("could not read Store file");
+            }
+        });
+})();
     
 function main(response) {
     var meta = {
@@ -21,6 +46,7 @@ function main(response) {
             wrappers.standard(meta, body, response);
         }
     });
+    
 }
 
 function draw(response, request, savedIndex) {
@@ -43,8 +69,7 @@ function draw(response, request, savedIndex) {
 
     meta.css = ['styles/canvasDraw.css'];
 
-    meta.jscripts = ['http://ajax.aspnetcdn.com/ajax/jQuery/jquery-1.8.0.js', //jquery
-    '/scripts/canvasDraw.js'];
+    meta.jscripts = ['/scripts/canvasDraw.js', '/scripts/ajax.js'];
     
     fs.readFile("./Pages/CanvasDraw.html", function(err, content){
         if(err){
@@ -77,6 +102,7 @@ function staticFile(path,contentType, response)
             response.writeHead(200);
             response.write(content);
             response.end();
+            util.log("Served" + path);
         }
     });
 }
@@ -86,18 +112,34 @@ function save(response, request){
     if ( request.method === 'POST' ) {
         // the body of the POST is JSON payload.
         var data = '';    
+        store.push(data);
+        var currentIndex = store.length - 1;
         
+        var path = currentIndex; //at somepoint we may want to allow people to set this themselves. 
+        
+        index.addToHandle('/saved/' + path, function(response, request){draw(response, request,currentIndex);});
+        
+        response.setHeader('Content-Type', "text/plain");
+        response.writeHead(200);
+        response.write('<a href="'+ common.appUrl + '/saved/' + path + '">' + common.appUrl + '/saved/' + path + '</a>');
+        response.end();
+        util.log("served save... handle:" + path );
+        
+        //handle the data Async...
         request.addListener('data', function(chunk) { data += chunk; });
         request.addListener('end', function() {
-            store.push(JSON.parse(data));
-            
-            var currentIndex = store.length - 1;
-            index.addToHandle('/saved/' + currentIndex, function(response, request){draw(response, request,currentIndex);});
-                        
-            response.setHeader('Content-Type', "text/plain");
-            response.writeHead(200);
-            response.write('<a href="'+ common.appUrl + '/saved/' + currentIndex + '">' + common.appUrl + '/saved/' + currentIndex + '</a>');
-            response.end();
+        
+        store[currentIndex] = JSON.parse(data);
+        
+        util.log("Added to store... handle:" + path );
+        
+        fs.writeFile("./Data/store.txt", JSON.stringify(store), function(err){
+                if(err){
+                    throw err;
+                }
+                util.log("Wrote Store file to disk");
+            });
+        
         });
     }
     else{
