@@ -1,6 +1,4 @@
-var async = require("./Async/lib/async"),
-    common = require("./Common"),
-    util = require("util");
+var util = require("util");
 
 function standard(meta, body, response) {
     var headerTagged = '<head>' + '<meta charset=\"utf-8\"/>' + '<title>' + meta.title + '</title>';
