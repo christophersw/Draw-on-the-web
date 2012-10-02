@@ -10,8 +10,8 @@
  */
 var backgroundCanvasId = "backgroundCanvas";
 var backgroundCanvas = null;
-var backgroundContext = null;
-var paths = [];
+var pathCollection = [];
+
 
 /* The Current Canvas 
  *   is used to draw the current path.
@@ -20,7 +20,7 @@ var paths = [];
  */
 var currentCanvasId = "currentCanvas";
 var currentCanvas = null;
-var currentContext = null;
+
 var currentPath;
 var selectedWidth;
 var selectedColor;
@@ -32,45 +32,79 @@ var eraseY = [];
 var erase = false;
 
 /* Other Current Variables */
-var paint = false;
-var select = true;
+var select = false;
+var draw = true;
+
 
 /*UI Element Variable*/
-var colorSelect;
+var activeColor = "";
+var inactiveColor = "";
+var saved = true;
+
+//draw controls
+var drawControls = null;
+var drawButton = null;
+var colorsDraw;
+var widthDraw;
+
+//select controls
+var colorsSelect;
 var widthSelect;
+var selectControls = null;
+var selectButton = null;
+
+
 
 /*Selection Variables*/
-var selectedPath = null;
+var selection= {
+    subPaths : [],
+    path : new Path(
+            1, 
+            activeColor, 
+            [0,0],
+            [0,0],
+            "square"),
+    selectStartX : 0,
+    selectStartY : 0
+    };
+    
 var selectButton = null;
 
 window.resizeTo = function() {}; //no resizing!
 
 window.onload = function() {
-    eraseButton = document.getElementById("eraseRadio");
+
+    //select controls
+    selectControls = document.getElementById("selectControls");
     selectButton = document.getElementById("selectButton");
-    eraseButton.checked = false;
-    colorSelect = document.getElementById("colorsSelect");
+    colorsSelect = document.getElementById("colorsSelect");
     widthSelect = document.getElementById("widthSelect");
+    
+    //draw controls
+    drawControls = document.getElementById("drawControls");
+    drawButton = document.getElementById("drawButton");
+    eraseButton = document.getElementById("eraseRadio");
+    eraseButton.checked = false;
+    colorsDraw = document.getElementById("colorsDraw");
+    widthDraw = document.getElementById("widthDraw");
+    
+     
     currentCanvas = document.getElementById(currentCanvasId);
     backgroundCanvas = document.getElementById(backgroundCanvasId);
-    
+
     getSaved();
 
-    function getRandomInt(min, max) {
-        return Math.floor(Math.random() * (max - min + 1)) + min;
-    }
-
+    setUIColors();
     var body = document.getElementById("body");
-    var color = "";
+    body.style.background = activeColor;
 
-    for (var i = 0; i < 6; i++) {
-        color += getRandomInt(0, 9);
-    }
-    body.style.background = '#' + color;
-    setColor();
-    setWidth();
-    setSelect();
+    //default start state is draw.
+    setDrawColor();
+    setDrawWidth();
+    setDraw();
+    
     newPath();
+    
 
     currentCanvas.addEventListener('touchstart', start, false);
     currentCanvas.addEventListener('mousedown', start, false);
@@ -79,7 +113,24 @@ window.onload = function() {
     currentCanvas.addEventListener('touchend', finish, false);
     currentCanvas.addEventListener('mouseup', finish, false);
     currentCanvas.addEventListener('mouseout', finish, false);
+    document.addEventListener('keydown', key, false);
 };
+
+function setUIColors() {
+    //active
+    for (var i = 0; i < 6; i++) {
+        activeColor += getRandomInt(0, 9);
+    }
+    activeColor = '#' + activeColor;
+
+    //inactive
+    inactiveColor = '#ffffff';
+}
+
+function getRandomInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
 
 /*************************
  *   EVENT LISTENERS     *
@@ -89,73 +140,303 @@ function start(event) {
     if (select) {
         startSelected(event);
     }
-    else {
+    else if (draw) {
         startDraw(event);
     }
 }
 
 function move(event) {
     if (select) {
-
+        moveSelect(event);
     }
-    else {
+    else if (draw) {
         moveDraw(event);
     }
 }
 
 function finish(event) {
     if (select) {
-
+        finishSelect(event);
     }
-    else {
+    else if (draw) {
         finishDraw(event);
     }
 }
 
-function setSelect(){
-    select = !select;
-    
+function del(event){
     if(select)
     {
-        selectButton.innerHTML = "Draw";
+        selectDelete();
     }
-    else
+    else if (draw)
     {
-       selectButton.innerHTML = "Select";
+        
     }
 }
 
+function key(event){
+    if(event !== undefined){
+        var keycode = event.keyCode;
+        switch (keycode){
+            case 46:
+                del(event);
+                break;
+        }
+    }
+    
+    
+}
+
+function resetControls() {
+    draw = false;
+    select = false;
+    
+    drawControls.style.display = 'none';
+    selectControls.style.display = 'none';
+   
+    drawButton.style.display = 'inline';
+    selectButton.style.display = 'inline';
+    
+}
+ 
+ 
 /************************
  *   SELECT FUNCTIONS   *
  * **********************/
+var dragging = false;
+var selecting = false;
 
-function startSelected(event){
-    var mouseX = event.pageX - currentCanvas.offsetLeft;
-    var mouseY = event.pageY - currentCanvas.offsetTop;
-    
-    for(var i = 0; i < paths.length; i++)
-    {
-        if(paths[i].isInside(mouseX, mouseY))
-        {
+function setSelect() {
+
+    resetControls();
+    select = true;
+
+    selectControls.style.display = 'inline';
+    selectButton.style.display = 'none';
+}
+
+function startSelected(event) {
+    dragging = true;
+
+    var mouseX = event.layerX;
+    var mouseY = event.layerY;
+
+    if (selection.path.isInside(mouseX, mouseY)) {
+        selecting = false;
+        selection.selectStartX = mouseX;
+        selection.selectStartY = mouseY;
+    }
+
+    //This click was outside the current selection, or there is no selection path.
+    else {
+        selection.subPaths = []; // clear the selected subpaths, so we can push a single one... 
+        
+        for (var i = 0; i < pathCollection.length; i++) {
+            if (pathCollection[i].isInside(mouseX, mouseY)) {
+                for (var x = 0; x < pathCollection[i].xPos.length; x++) {
+                    var path = pathCollection[i];
+                    if (Math.abs(mouseX - path.xPos[x]) < 5 && Math.abs(mouseY - path.yPos[x]) < 5) {
+                        selection.path.xPos = [path.maxX(), path.minX()];
+                        selection.path.yPos = [path.maxY(), path.minY()];
+                        selection.subPaths[0] = path;
+                        selection.subPaths[0].fromPathIndex = i;
+                        selection.selectStartX = mouseX;
+                        selection.selectStartY = mouseY;
+                        currentCanvas.width = currentCanvas.width; //Clear Current canvas...
+                        selection.path.drawBoxAround(currentCanvas);
+                        selecting = false;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (selection.subPaths.length === 0) {
+            selection.path.xPos[0] = mouseX;
+            selection.path.yPos[0] = mouseY;
+            selecting = true;
+        }
+    }
+}
+
+function moveSelect(event) {
+
+    var mouseX = event.layerX;
+    var mouseY = event.layerY;
+
+    if (dragging) {
+        if (!selecting) { //move the currently selected group...
+            var i; //counter...
+            var XAmount = mouseX - selection.selectStartX;
+            var YAmount = mouseY - selection.selectStartY;
+            selection.selectStartX = mouseX;
+            selection.selectStartY = mouseY;
+
+            //loop the selected paths
+            for (var p = 0; p < selection.subPaths.length; p++) {
+                
+                //loop the svg points. 
+                for (i = 0; i < selection.subPaths[p].xPos.length; i++) {
+                    selection.subPaths[p].xPos[i] += XAmount;
+                    selection.subPaths[p].yPos[i] += YAmount;
+                    
+                }   
+                
+                
+                pathCollection[selection.subPaths[p].fromPathIndex] = selection.subPaths[p];
+            }
+            
+            //loop through selection box         
+            for (i = 0; i < selection.path.xPos.length; i++)
+            {
+                selection.path.xPos[i] += XAmount;
+                selection.path.yPos[i] += YAmount;
+            }
+
+            redrawBackground();
+
             currentCanvas.width = currentCanvas.width; //Clear Current canvas...
-            paths[i].drawBoxAround(currentCanvas);
-            break;
-        }    
-    }    
+            selection.path.drawBoxAround(currentCanvas);
+        }
+
+        else { //make a bulk selection
+            selection.path.xPos[1] = mouseX;
+            selection.path.yPos[1] = mouseY;
+
+            currentCanvas.width = currentCanvas.width; //Clear Current canvas...
+            selection.path.drawBoxAround(currentCanvas);
+        }
+    }
+
+}
+
+function finishSelect(event) {
+    var x;
+    if (dragging) {
+        //something was selected  
+        if (selecting) {
+            selection.subPaths = []; //clear current sub paths...
+
+            //used for tracking the min and max x's and y's insided the selected set to resize (shrink) the selection box. 
+            var maxX = 0;
+            var minX = 99999;
+            var maxY = 0;
+            var minY = 99999;
+
+            for (x = 0; x < pathCollection.length; x++) {
+
+
+                var pathMaxX = pathCollection[x].maxX();
+                var pathMaxY = pathCollection[x].maxY();
+                var pathMinX = pathCollection[x].minX();
+                var pathMinY = pathCollection[x].minY();
+
+                if (selection.path.isInside(pathMaxX, pathMaxY) && selection.path.isInside(pathMinX, pathMinY)) {
+                    if (maxX < pathMaxX)(maxX = pathMaxX);
+                    if (maxY < pathMaxY)(maxY = pathMaxY);
+                    if (minX > pathMinX)(minX = pathMinX);
+                    if (minY > pathMinY)(minY = pathMinY);
+
+                    selection.subPaths.push(pathCollection[x]);
+                    selection.subPaths[selection.subPaths.length-1].fromPathIndex = x;
+                }
+            }
+
+            //subpaths found...then box them, otherwise set selected path to 0,0 : 0,0
+            selection.path.xPos = (selection.subPaths.length > 0) ? [minX, maxX] : [0, 0];
+            selection.path.yPos = (selection.subPaths.length > 0) ? [minY, maxY] : [0, 0];
+        }
+
+        //redrawBackground();
+        currentCanvas.width = currentCanvas.width; //Clear Current canvas...
+        selection.path.drawBoxAround(currentCanvas);
+
+        //clear flasgs
+        dragging = false;
+        selecting = false;
+    }
+}
+
+function selectDelete(){
+    
+    for(var i = 0; i < selection.subPaths.length; i++)
+    {        
+        pathCollection.splice(selection.subPaths[i].fromPathIndex - i,1);
+    }
+    
+    selection.subPaths = []; //reset the subpaths to nothing.
+    selection.path.xPos = [0,0];
+    selection.path.yPos = [0,0];
+    
+    redrawBackground();
+    
+}
+
+function setSelectColor(){
+    var index = colorsSelect.selectedIndex;
+    var c = colorsSelect.options[index].value;
+    var newColor;
+    
+    if (c === "custom") {
+        var p = prompt("Input Custom Color Code (ex. #000000):", '#000000');
+        if (p) {
+            newColor = p;
+            colorsSelect.style.background = p;
+        }
+    }
+    else if (c) //this will return false if you pick the label...
+    {
+        newColor = c;
+        colorsSelect.style.background = colorsDraw.options[index].style.background;
+        colorsSelect.style.color = colorsDraw.options[index].style.color; 
+    }   
+    
+    for(var i = 0; i < selection.subPaths.length; i++)
+    {
+        selection.subPaths[i].lineColor = newColor;  
+        pathCollection[selection.subPaths[i].fromPathIndex] = selection.subPaths[i];
+    }
+    
+    redrawBackground();
+    selection.path.drawBoxAround(currentCanvas);
+}
+
+function setSelectWidth(){
+    var index = widthSelect.selectedIndex;
+    var w = widthSelect.options[index].value;
+    if (w) //this will return false if you pick the label...
+    {
+        for(var i = 0; i < selection.subPaths.length; i++)
+        {
+            selection.subPaths[i].lineWidth = w;
+            pathCollection[selection.subPaths[i].fromPathIndex] = selection.subPaths[i];
+        }
+        
+        redrawBackground();
+        selection.path.drawBoxAround(currentCanvas);
+    }
 }
 
 
 /*************************
  *     DRAW FUNCTIONS    *
  *************************/
+var paint = false;
+function setDraw() {
+
+    resetControls();
+    draw = true;
+
+    drawControls.style.display = 'inline';
+    drawButton.style.display = 'none';
+
+}
 
 function startDraw(event) {
-   newPath();
-   document.getElementById("saveButton").style.display = "inline";
-
-
-    var mouseX = event.pageX - currentCanvas.offsetLeft;
-    var mouseY = event.pageY - currentCanvas.offsetTop;
+    newPath();
+    
+    var mouseX = event.layerX ;
+    var mouseY = event.layerY ;
 
     if (erase) {
         currentPath.addPoint(mouseX, mouseY);
@@ -172,13 +453,17 @@ function startDraw(event) {
 }
 
 function moveDraw(event) {
+    
+    var mouseX = event.layerX;
+    var mouseY = event.layerY;
+    
     if (erase && paint) {
-        addErase(event.pageX - currentCanvas.offsetLeft, event.pageY - currentCanvas.offsetTop);
+        addErase(mouseX, mouseY);
         unDraw();
         redrawBackground();
     }
     else if (paint) {
-        currentPath.addPoint(event.pageX - currentCanvas.offsetLeft, event.pageY - currentCanvas.offsetTop, true);
+        currentPath.addPoint(mouseX, mouseY, true);
         redrawCurrent();
     }
 
@@ -186,24 +471,30 @@ function moveDraw(event) {
 }
 
 function finishDraw(event) {
-    paths.push(currentPath);
-    redrawBackground();
-    paint = false;
+    if(paint)
+    {
+        paint = false;
+        pathCollection.push(currentPath);
+        redrawBackground();
+    }
     event.preventDefault();
 }
 
-function setColor() {
-    var index = colorSelect.selectedIndex;
-    var c = colorSelect.options[index].value;
+function setDrawColor() {
+    var index = colorsDraw.selectedIndex;
+    var c = colorsDraw.options[index].value;
     if (c === "custom") {
         var p = prompt("Input Custom Color Code (ex. #000000):", '#000000');
         if (p) {
             selectedColor = p;
+            colorsDraw.style.background = p;
         }
     }
     else if (c) //this will return false if you pick the label...
     {
         selectedColor = c;
+        colorsDraw.style.background = colorsDraw.options[index].style.background;
+        colorsDraw.style.color = colorsDraw.options[index].style.color; 
     }
 }
 
@@ -212,9 +503,9 @@ function setErase() {
     eraseButton.checked = erase;
 }
 
-function setWidth() {
-    var index = widthSelect.selectedIndex;
-    var w = widthSelect.options[index].value;
+function setDrawWidth() {
+    var index = widthDraw.selectedIndex;
+    var w = widthDraw.options[index].value;
     if (w) //this will return false if you pick the label...
     {
         selectedWidth = w;
@@ -227,8 +518,8 @@ function addErase(x, y) {
 }
 
 function unDraw() {
-    for (var p = 0; p < paths.length; p++) {
-        var path = paths[p];
+    for (var p = 0; p < pathCollection.length; p++) {
+        var path = pathCollection[p];
 
         for (var e = 0; e < eraseX.length; e++) {
             if (eraseX[e] > path.xMax || eraseX[e] < path.xMin || eraseY[e] > path.yMax || eraseY[e] < path.yMin) {
@@ -269,15 +560,15 @@ function unDraw() {
  ************************************************************************************/
 
 function Path(lineWidth, lineColor, xPos, yPos, lineJoin) {
-    this.lineWidth = (typeof lineWidth ==="string") ? lineWidth : 5,
-    this.lineColor = (typeof lineColor ==="string") ? lineColor : "#000000",
-    this.lineJoin = (typeof lineJoin ==="string") ? lineJoin : "round",
-    this.xPos = (typeof xPos !=="undefined") ?  xPos : [],
-    this.yPos = (typeof yPos !=="undefined") ?  yPos : [];
+    this.lineWidth = (typeof lineWidth === "string") ? lineWidth : 5,
+    this.lineColor = (typeof lineColor === "string") ? lineColor : "#000000",
+    this.lineJoin = (typeof lineJoin === "string") ? lineJoin : "round",
+    this.xPos = (typeof xPos !== "undefined") ? xPos : [],
+    this.yPos = (typeof yPos !== "undefined") ? yPos : [];
 }
 
 Path.prototype.maxX = function() {
-   return Math.max.apply(null, this.xPos);
+    return Math.max.apply(null, this.xPos);
 };
 
 Path.prototype.minX = function() {
@@ -318,47 +609,45 @@ Path.prototype.drawOnCanvas = function(canvas) {
         context.closePath();
         context.stroke();
     }
-    
+
     return;
 };
 
-Path.prototype.drawBoxAround = function(canvas, strokeStyle){
-      
-      var context = canvas.getContext("2d");
-      context.strokeStyle = (typeof strokeStyle !=="undefined") ?  strokeStyle : "#000000";
-      var x = this.minX();
-      var y = this.minY();
-      var width = this.maxX() - this.minX();
-      var height = this.maxY() - this.minY();
-      
-      context.strokeRect (x,y, width, height);
-      context.stroke();
-      
-      return
-};
+Path.prototype.drawBoxAround = function(canvas, strokeStyle) {
 
+    var context = canvas.getContext("2d");
+    context.strokeStyle = (typeof strokeStyle !== "undefined") ? strokeStyle : "#000000";
+    var x = this.minX();
+    var y = this.minY();
+    var width = this.maxX() - this.minX();
+    var height = this.maxY() - this.minY();
+
+    context.strokeRect(x, y, width, height);
+    context.stroke();
+
+    return;
+};
 
 
 /*************************
  *    CANVAS FUNCTIONS   *
  *************************/
- 
- function newPath() {
+
+function newPath() {
     //commit the background... when you have a chance..
     window.setTimeout(redrawBackground, 0);
-    
+
     //set up new current path.
     currentPath = new Path(selectedWidth, selectedColor);
 }
 
-function deleteAllPaths()
-{
-    paths = [];
+function deleteAllPaths() {
+    pathCollection = [];
     newPath();
     redrawBackground();
     redrawCurrent();
 }
- 
+
 /* redrawBackground():  Redraws Background Canvas
  *   This method will redraw all of the path elements to the background
  *   canvas. For performance this should never be used when a draw to the current
@@ -369,11 +658,11 @@ function redrawBackground() {
     currentCanvas.width = currentCanvas.width; //Clear Current canvas...
     backgroundCanvas.width = backgroundCanvas.width; // Clears the canvas        
 
-    for (var p = 0; p < paths.length; p++) {
-    
-        paths[p].drawOnCanvas(backgroundCanvas);
-        
+    for (var p = 0; p < pathCollection.length; p++) {
+        pathCollection[p].drawOnCanvas(backgroundCanvas);
     }
+    
+    setUnsaved();
 }
 
 function redrawCurrent() {
@@ -385,9 +674,25 @@ function redrawCurrent() {
  *   SAVING FUNCTIONS    *
  *************************/
 
+function setUnsaved(){
+    saved = false;
+    setTimeout(function() {
+        checkSaveButton();
+    }, 0);
+}
+function checkSaveButton(){
+    if(!saved && pathCollection.length > 0)
+    {
+        document.getElementById("saveButton").style.display = "inline";
+    }
+    else{
+        document.getElementById("saveButton").style.display = "none";
+    }
+}
+
 function sendData() {
     var data = {
-        paths: paths,
+        paths: pathCollection,
         url: document.getElementById('Iframe').getAttribute("src")
     };
     put("/save", data);
@@ -403,15 +708,34 @@ function put(id, data) {
         link.innerHTML = replyData.responseText;
         saveSatus.innerHTML = "Saved: ";
         saveSatus.style.textDecoration = "none";
+        saved = true;
+        checkSaveButton();
     }, JSON.stringify(data));
 }
 
 function getSaved() {
     var savedObj = document.getElementById("saved");
-
+    
     if (savedObj) {
         var storedData = JSON.parse(savedObj.getAttribute("data-savedDate"));
-        paths = storedData.paths;
+        for(var i = 0; i < storedData.paths.length; i++)
+        {            
+            var sd = storedData.paths[i];
+            
+            //lineWidth, lineColor, xPos, yPos, lineJoin
+            var spath = new Path(
+                    sd.lineWidth,
+                    sd.lineColor, 
+                    sd.xPos, 
+                    sd.yPos, 
+                    sd.lineJoin
+                );
+            pathCollection.push(spath);
+        }
         redrawBackground();
+        
+        
+        
+        
     }
 }

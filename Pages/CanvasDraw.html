@@ -1,0 +1,83 @@
+<div id="controls">
+    <fieldset style="display:inline">
+        <legend>other controls</legend>
+        <button id="selectButton" type="reset" value="select" onclick="setSelect()">select</button>
+        <button id="drawButton" type="reset" value="draw" onclick="setDraw()">draw</button>
+    </fieldset> 
+<!--SELECT CONTROLS ----------------------------------------------------------------------------->
+    <fieldset id="selectControls" style="display:none">
+        <legend>select</legend>
+        <span>
+            <span>
+                <span>change color:</span>
+                <select id="colorsSelect" style="color:white" onchange="setSelectColor()">
+                    <option style="background:#ff0000; color:white" selected="selected" value="#ff0000">red</option>
+                    <option style="background:#008000; color:white" value="#008000">green</option>
+                    <option style="background:#0000ff; color:white" value="#0000ff">blue</option>
+                    <option style="background:#ffffff; color:black" value="#ffffff">white</option>
+                    <option style="background:#0000A0; color:white" value="#0000A0">dark blue</option>
+                    <option style="background:#00FF00; color:white" value="#00FF00">lime</option>
+                    <option style="background:#FFA500; color:white" value="#FFA500">orange</option>
+                    <option style="background:#800080; color:white" value="#800080">purple</option>
+                    <option style="background:#000000; color:white" value="#000000">black</option>
+                    <option style="background:#ffffff; color:black">custom</option>
+                </select>
+            </span>
+            <span>
+                <span>change width:</span>
+                <select id="widthSelect" onchange="setSelectWidth()">
+                    <option value="1">thinnest</option>
+                    <option value="3">thin</option>
+                    <option value="5" selected="selected">medium</option>
+                    <option value="7">thick</option>
+                    <option value="9">thickest</option>
+                </select>
+            </span>
+            <button id="selectDeleteButton" type="submit" value="delete" onclick="selectDelete()">Delete</button>
+        </span>
+    </fieldset>
+<!--DRAW CONTROLS ----------------------------------------------------------------------------->
+    <fieldset style="display:inline" id="drawControls">
+        <legend>draw</legend>
+        <span>
+            <span>
+                <span>color:</span>
+                <select id="colorsDraw" style="color:white" onchange="setDrawColor()">
+                    <option style="background:#ff0000; color:white" selected="selected" value="#ff0000">red</option>
+                    <option style="background:#008000; color:white" value="#008000">green</option>
+                    <option style="background:#0000ff; color:white" value="#0000ff">blue</option>
+                    <option style="background:#ffffff; color:black" value="#ffffff">white</option>
+                    <option style="background:#0000A0; color:white" value="#0000A0">dark blue</option>
+                    <option style="background:#00FF00; color:white" value="#00FF00">lime</option>
+                    <option style="background:#FFA500; color:white" value="#FFA500">orange</option>
+                    <option style="background:#800080; color:white" value="#800080">purple</option>
+                    <option style="background:#000000; color:white" value="#000000">black</option>
+                    <option style="background:#ffffff; color:black">custom</option>
+                </select>
+            </span>
+            <span>
+                <span>width:</span>
+                <select id="widthDraw" onchange="setDrawWidth()">
+                    <option value="1">thinnest</option>
+                    <option value="3">thin</option>
+                    <option value="5" selected="selected">medium</option>
+                    <option value="7">thick</option>
+                    <option value="9">thickest</option>
+                </select>
+            </span>
+            <span>
+                <span>Erase:</span>
+                <input id="eraseRadio" checked="false" type="radio" value="eraser"
+                onclick="setErase()"></input>
+            </span>
+        </span>
+    </fieldset>
+    
+    <button id="clearButton" type="reset" value="clear" onclick="deleteAllPaths()">clear screen</button>
+    <button id="saveButton" style="display:none" type="submit" value="submit" onclick="sendData()">Save</button>
+    <span id="saveSatus" style="display:none">Saving...</span>
+    <span id="link"></span>
+</span>
+<div id="container">
+    <canvas id="currentCanvas" width="1200px" height="9999px">No Canvas</canvas>
+    <canvas id="backgroundCanvas" width="1200px" height="9999px">No Canvas</canvas>
